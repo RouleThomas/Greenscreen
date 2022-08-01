@@ -51,7 +51,102 @@ scripts/organize_raw_fasta_input_PAIRA.sh
 sbatch scripts/fastqc_raw_inputs.sh
 ```
 Some fastq have adaptor contents, other does not.\
-Dependening data paired/single-end or adpator or not I used: TruSeq3-PE.fa or TruSeq3-SE.fa paired or single, respectively; and try TruSeq2 and TruSeq3 and pipck the best
+Dependening data paired/single-end or adpator or not I used: TruSeq3-PE.fa or TruSeq3-SE.fa paired or single, respectively; and try TruSeq2 and TruSeq3 and picked the best
+
+***NOTE:*** Paired-end data can be treated as single end. For that, use R1 mapped reads (or R2 mapped reads), and follow Greenscreen pipeline as it was single end. I prefered to treat paired-end as paired-end (just need to adapt all future tools; trimmomatic, MACS2...
+Launch mapping as follow:
+```
+java -jar trimmomatic-0.35.jar PE -phred33 \
+    input_forward.fq.gz input_reverse.fq.gz \
+    output_forward_paired.fq.gz output_forward_unpaired.fq.gz \
+    output_reverse_paired.fq.gz output_reverse_unpaired.fq.gz \
+    ILLUMINACLIP:TruSeq3-PE.fa:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36
+```
+I made several scripts to launch in parralel:
+```
+mapped_input1PAIRED.sh --> mapped_input5PAIRED.sh
+```
+Mapping rate is good (>90%)
+
+4. Check quality of mapping
+Obtain genome and chr size:
+```
+sbatch scripts/measureContigLengthFromFasta.sh meta/genome/IRGSP-1.0_genome.fasta > meta/genome/IRGSP-1.0_chr_count.txt
+```
+$Troubleshoot, same issue as reported in Tutorial; output goes into the slurm file instead of the specified output; again, no time to have a look at it so just copy/paste into the output\
+Input file modified: *meta/noMaskReads_Inputs_sampleSheet.csv*\
+Launch ChIPQC script **in CondaGS environment**
+```
+conda activate CondaGS
+/home/roule/R/R-4.2.0/bin/Rscript scripts/ChIPQC_forR42.R --indivReports -g IRGSP -c chr01 chr02 chr03 chr04 chr05 chr06 chr07 chr08 chr09 chr10 chr11 chr12 -a meta/genome/IRGSP-1.0_representative/transcripts_exon.gff -s meta/genome/IRGSP-1.0_chr_count.txt meta/noMaskReads_Inputs_sampleSheet.csv data/ChIPQCreport/20inputs_noMask
+```
+$FAIL, input B failed; 
+> names' attribute [9] must be the same length as the vector [7]
+$Troubleshoots; seems to be a common error that Sheng corrected [here](https://github.com/shengqh/ChIPQC). I installed the shengqh CHIPQC script instead of the one from the tutorial; and add "force = TRUE" to the installation, within the script.\
+***NOTE:*** ChIPQC only work with Single-end file. It is usefull to predict the expected fragment size notably, needed for the Greenscreen pipeline. So for the Paired-end files, cannot CHIPQC but the macs2 can work with paired-end, it will ignore the estimated fragment length (via strand cross correlation) and use the fragment length of each mated pair.\
+Run ChIPQC:
+```
+/home/roule/R/R-4.2.0/bin/Rscript scripts/ChIPQC_forR42.R --indivReports -g IRGSP -c chr01 chr02 chr03 chr04 chr05 chr06 chr07 chr08 chr09 chr10 chr11 chr12 -a meta/genome/IRGSP-1.0_representative/transcripts_exon.gff -s meta/genome/IRGSP-1.0_chr_count.txt meta/noMaskReads_Inputs_sampleSheet.csv data/ChIPQCreport/20inputs_noMask
+```
+5. Call peaks with MACS2
+Estimate the mappable size of the genome with faCount:
+```
+rsync -aP rsync://hgdownload.soe.ucsc.edu/genome/admin/exe/linux.x86_64/faCount ./
+/home/roule/GreenScreen/Software/faCount  #Comand to use to run it
+../rice/GreenscreenProject/meta/genome/IRGSP-1.0_genome.fasta
+```
+Total size= 373245519; N= 116654\
+The effective genome size would then be the total number of base pairs minus the total number of ‘N’ = 373128865\
+- For single-end:
+```
+    macs2 callpeak \
+        -t mapped/input/input${x}.dupmark.sorted.bam \
+        -f BAM --keep-dup auto --nomodel \
+        --extsize ${readsize} --broad --nolambda \
+        -g 101274395 -n input${x} \
+        --outdir ${macs_out}
+
+done < meta/input_readsizes.csv
+```
+- For paired-end:
+```
+while read line; do
+    x=$(echo $line | cut -d "," -f1)
+
+    # call peaks with MACS2 PAIRED data
+ 
+    macs2 callpeak \
+        -t mapped/input/input${x}.dupmark.sorted.bam \
+        -f BAMPE --keep-dup auto --nomodel \
+        --broad --nolambda \
+        -g 373128865 -n input${x} \
+        --outdir ${macs_out}
+
+Done
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
