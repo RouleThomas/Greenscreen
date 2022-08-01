@@ -82,7 +82,9 @@ conda activate CondaGS
 ```
 $FAIL, input B failed; 
 > names' attribute [9] must be the same length as the vector [7]
+
 $Troubleshoots; seems to be a common error that Sheng corrected [here](https://github.com/shengqh/ChIPQC). I installed the shengqh CHIPQC script instead of the one from the tutorial; and add "force = TRUE" to the installation, within the script.\
+
 ***NOTE:*** ChIPQC only work with Single-end file. It is usefull to predict the expected fragment size notably, needed for the Greenscreen pipeline. So for the Paired-end files, cannot CHIPQC but the macs2 can work with paired-end, it will ignore the estimated fragment length (via strand cross correlation) and use the fragment length of each mated pair.\
 Run ChIPQC:
 ```
@@ -124,6 +126,80 @@ while read line; do
 
 Done
 ```
+**Can do some quality control on peak calling file; cross correlation plot, seq depth and NRF**\
+- cross correlation plot (only work for single-end data) with macs2-predict
+```
+macs2 predictd -i mapped/input/inputW.dupmark.sorted.bam -g 373128865 --outdir mapped/input/
+/home/roule/R/R-4.2.0/bin/Rscript mapped/input/predictd #After running previous comand you obtain an Rscript that you just have to run to obtain a plot
+```
+- Seq depth
+```
+samtools depth inputA.sam | awk '{c++;s+=$3}END{print s/c}'
+```
+- To calculate the Non-Redundant Fraction (NRF) – Number of distinct uniquely mapping reads (i.e. after removing duplicates) / Total number of reads.
+
+6. Generate the greenscreen
+```
+sbatch scripts/generate_20input_greenscreenBed.sh 10 1000 10
+```
+Here we merge within 1000bp and keep peak found in 50% of inputs (i.e. 10 inputs).\
+This has been modified, generated merge parameter from 500 to 50kb
+
+7. Obtain some Greenscreen genome parameter/characteristics
+- Percent of genome covered
+Install bedops:
+```
+git clone https://github.com/bedops/bedops.git
+cd bedops
+make
+make install
+```
+Then launch command as folow:
+```
+../../Software/bedops/bin/bedmap --echo --bases-uniq --delim '\t' data/macs2_out/inputControls/qval10/chr_size.bed data/macs2_out/inputControls/qval10/gs_merge1000bp_call10_20inputs.bed | awk 'BEGIN { genome_length = 0; masked_length = 0; } { genome_length += ($3 - $2); masked_length += $4; } END { print (masked_length / genome_length); }'
+```
+--> Multiply per 100 to get result in %.\
+- Number of bp covered by Greenscreen mask
+```
+../../Software/bedops/bin/bedmap --echo --bases-uniq --delim '\t' data/macs2_out/inputControls/qval10/chr_size.bed data/macs2_out/inputControls/qval10/gs_merge10000bp_call10_20inputs.bed | awk 'BEGIN { genome_length = 0; masked_length = 0; } { genome_length += ($3 - $2); masked_length += $4; } END { print (masked_length); }'
+```
+- Number of genes covered
+```
+bedtools intersect -a data/macs2_out/inputControls/qval10/gs_merge1000bp_call10_20inputs.bed -b meta/genome/IRGSP-1.0_representative/locus.gff -c | awk '{sum += $11} END {print sum}'
+```
+
+8. Analyzed ChIPseq files and apply the generated Greenscreen to assess its efficiency\
+8.1 Download the data one-by-one as script not working ($FAIL, no time to troubleshoot) and tidy/rename/compress it\
+```
+fasterq-dump XXX -S
+sbatch scripts/fastqc_raw_publishedChIPsAndControls.sh
+```
+8.2 Check quality and trimmed accordingly (dependending on adaptor presence)\
+If adaptors present I tested both TruSeq3 and TruSeq2 fasta sequences and keep the best one (for either PE and SE)\
+Launch scripts:
+```
+trimmomatic_publishedChIPsAndControls1.sh #same until trimmomatic_publishedChIPsAndControls6.sh
+```
+8.3 Then mapped the trimmed reads:
+```
+mapped_IP1PAIRED.sh #Same until mapped_IP7PAIRED.sh
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
