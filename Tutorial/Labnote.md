@@ -232,40 +232,93 @@ Now, launch the script using this version of R:\
 ```
 
 6. Vizualize mapped input sequences
+**Download and install bedgraphtobigwig**\
+```
+URL=http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64
+curl $URL/bedGraphToBigWig > /home/roule/GreenScreen/Software/bedGraphToBigWig
+chmod +x /home/roule/GreenScreen/Software/bedGraphToBigWig
+curl $URL/faToTwoBit > /home/roule/GreenScreen/Software/faToTwoBit
+chmod +x /home/roule/GreenScreen/Software/faToTwoBit
+```
+To run command use:
+```
+/home/roule/GreenScreen/Software/bedGraphToBigWig
+```
+$FAIL, installing MACS2\
+Need to install many stuff, so create a Conda environment as follow:
+```
+python3 -m venv /home/roule/GreenScreen/tutorial/GreenscreenProject/
+source bin/activate #to activate and get into it
+deactivate # to leave it
+python3 -m pip install --upgrade pip #Install MACS2 within my custom conda environment
+```
+$FAIL, because MACS2 need Python2 (and not Python3)\
+Install a custom version of Python2:
+```
+cd ~
+mkdir tmp
+cd tmp
+wget https://www.python.org/ftp/python/2.7.15/Python-2.7.15.tgz
+tar zxvf Python-2.7.15.tgz
+cd Python-2.7.15 
+./configure --prefix=$HOME/opt/python-2.7.15 --with-ensurepip=install
+make
+make install
+```
+Put this installed version as Python default:
+```
+Cd ~
+export PATH=$HOME/opt/python-2.7.15/bin:$PATH
+. ~/.bash_profile
+which python #should indicate the path to 2.7.15 (~/opt/python-2.7.15/bin/python)
+pip install virtualenv
+virtualenv -p ~/opt/python-2.7.15/bin/python GSenv #To create Python2 environment
+source GSenv/bin/activate #activate environment
+python -m pip install --upgrade pip
+pip install numpy
+pip install MACS2
+```
+$FAIL, say Python must be 3.6 or over, so I installed a more recent verion:
+```
+wget https://www.python.org/ftp/python/3.8.4/Python-3.8.4.tgz
+cd ~
+mkdir tmp
+cd tmp
+wget https://www.python.org/ftp/python/3.8.4/Python-3.8.4.tgz
+tar xvf Python-3.8.4.tgz
+cd Python-3.8.4
+./configure --enable-optimizations --with-ensurepip=install
+make -j 8
+/home/roule/tmp/Python-3.8.4/python # To run it
+virtualenv --python=/home/roule/tmp/Python-3.8.4/python /home/roule/GreenScreen/tutorial/GreenscreenProject/ #To create virtual environment
+source bin/activate # To activate
+pip install git+https://github.com/ducksboard/libsaas.git#egg=libsaas
+python3 -m pip install "MACS2"
+```
+> FAIL No module named '_ctypes'
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+$FAIL, need install *libfi*, I installed it as follow:
+```
+wget ftp://sourceware.org/pub/libffi/libffi-3.2.1.tar.gz
+tar xvfz libffi-3.2.1.tar.gz
+cd libffi-3.2.1
+./configure --prefix=/usr/local/libffi/3_2_1
+make
+make install
+```
+Repeat installation but $FAIL again\
+$SOLUTION, work within a CONDA environment
+```
+module load Anaconda/2019.10
+conda create --name test1 python=3.6.8 r=3.6.0  #Create environment with desired version, use "conda search python" or "conda search R" to see available packages
+conda create --name CondaGS python=3.6.8
+conda init bash
+conda activate CondaGS
+python3 -m pip install "MACS2"
+```
+Modified script to call for peaks and launch it; then generate Greenscreen:
+```
+sbatch scripts/macs2_callpeaks_inputs.sh
+sbatch scripts/generate_20input_greenscreenBed.sh 10 1000 2 #[1]=pvalue, [2]=merge parameter [3]=call for GS region if peak present in "2" inputs
+```
+The output is a bed format of the Arabidopsis Greenscreen region using 3 inputs
