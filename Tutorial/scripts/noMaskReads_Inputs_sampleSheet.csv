@@ -1,0 +1,4 @@
+SampleID,bamReads
+inputA,mapped/input/inputA.dupmark.sorted.bam
+inputB,mapped/input/inputB.dupmark.sorted.bam
+inputD,mapped/input/inputD.dupmark.sorted.bam
