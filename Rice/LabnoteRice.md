@@ -184,56 +184,88 @@ trimmomatic_publishedChIPsAndControls1.sh #same until trimmomatic_publishedChIPs
 ```
 mapped_IP1PAIRED.sh #Same until mapped_IP7PAIRED.sh
 ```
+8.4 Downsamples when multiple replicates
+```
+downSampleBam_publishedChIPsAndControlsSINGLEREP.sh #No need to downsample; here just copy file to new "downsample" folder
+downSampleBam_publishedChIPsAndControlsTRIPLEREP.sh
+```
+8.5 Call peaks with MACS2
+The script were super buggy, so because I lack of time, I run it old-school in the comand line, as follow:
+```
+macs2 callpeak -t mapped/chip/NAC5_myc_JKK_2018_R1.dupmark.sorted.bam \
+        	                -c mapped/chip/downsample/NAC_input_JKK_2018_R1.dupmark.sorted.bam \
+                	        -f BAMPE --keep-dup auto \
+                        	--nomodel -g 373128865 \
+	                        --outdir data/macs2_out/chipPeaksPAIRED -n NAC5_myc_JKK_2018_R1
+
+## very long
+awk -F"\t" -v q=2 'BEGIN{OFS="\t"} \
+                	data/macs2_out/chipPeaksPAIRED/NAC5_myc_JKK_2018_R1_peaks.narrowPeak > \
+                       	data/macs2_out/chipPeaksPAIRED/noMask_qval_corrNACgood2/NAC5_myc_JKK_2018_R1_peaks.narrowPeak
 
 
 
+bedtools intersect -v -wa \
+                        -a data/macs2_out/chipPeaksPAIRED/noMask_qval_corr2/NAC5_myc_JKK_2018_R1_peaks.narrowPeak \
+                        -b meta/gs_merge2000bp_call10_20inputs_corr.bed > \
+                        data/macs2_out/chipPeaksPAIRED/gsMask_qval_corr2/NAC5_myc_JKK_2018_R1_peaks.narrowPeak
 
+```
+8.6 Generate the bigwig coverage files
+```
+sbatch scripts/bamToBigWig_publishedChIPsAndControls_replicates1.sh 
+sbatch scripts/bamToBigWig_publishedChIPsAndControls_replicates1.sh
+```
+8.7 Called peaks taking into account their respective controls
+```
+scripts/macs2_callpeaks_publishedChIPsPAIREDpval5_corr.sh
+```
+***NOTE:*** For the paired-end data I need to indicate median fragment size  in meta/chip_controls_fragsize_nreps.csv; for that:
+```
+conda activate CondaGS
+cd Software
+pip install deeptools
+bamPEFragmentSize -b mapped/chip/downsample/SNAC1_LX_2019_Rep1_.dupmark.sorted.bam #Output will give read and fragment median sizes
+```
+Then merge all the peaks into one bed file using:
+```
+sbatch merge_chip_peaks_p5_GS.sh
+```
+Generate a matrix taking all peak and coverage file into account :
+```
+conda activate CondaGS
+pip install pandas # Need to be installed 
+python3 scripts/readCorrelationPlot.py \
+data/plotCorrelation/coverage_matrix_trueRep_peaks_merged.csv \
+data/plotCorrelation/trueRep_peaks_merged_heatmap.png \
+-lm ward --plot_numbers -k 2 -ri \
+-sl meta/chip_trueReps_colorshapeLabels.csv \
+-cf meta/chip_trueReps_expectedCluster.csv
+```
+Then, generate a heatmap from the matrix file:
+```
+pip install seaborn  # Need to be installed 
+python3 scripts/readCorrelationPlot.py \
+data/plotCorrelation/coverage_matrix_trueRep_peaks_merged.csv \
+data/plotCorrelation/trueRep_peaks_merged_heatmap.png \
+-lm ward --plot_numbers -k 2 -ri \
+-sl meta/chip_trueReps_colorshapeLabels.csv \
+-cf meta/chip_trueReps_expectedCluster.csv
+```
+Repeat the following scripts, changing on the top header qvalue parameters or Greenscreen to use
+```
+sbatch scripts/macs2_callpeaks_publishedChIPsPAIREDpval5_corr.sh
+sbatch merge_chip_peaks_p5_GS.sh
+python3 scripts/coverage_bed_matrix.py \
+meta/chip_trueRep_bigwigs.csv \
+data/macs2_out/chipPeaksPAIRED/gsMask_qval_corr5/ChIPseq_Peaks_gsqval5.merged.bed \
+-o data/plotCorrelation \
+-m coverage_matrix_trueRep_peaks_merged.csv
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+python3 scripts/readCorrelationPlot.py \
+data/plotCorrelation/coverage_matrix_trueRep_peaks_merged.csv \
+data/plotCorrelation/trueRep_peaks_merged_heatmap.png \
+-lm ward --plot_numbers -k 2 -ri \
+-sl meta/chip_trueReps_colorshapeLabels.csv \
+-cf meta/chip_trueReps_expectedCluster.csv
+```
