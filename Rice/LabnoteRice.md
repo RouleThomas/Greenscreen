@@ -41,7 +41,17 @@ Need to use:\
 ```
 fasterq-dump SRR8746746 -S #add -S flag to download both R1 and R2, and not only R1....
 ```
-
+Launch scripts for download all:
+```
+sbatch scripts/import_raw_fasta_inputsA.sh 
+```
+$FAIL, Downloading the data did not work using a slurm job; asking  for vdb-config and lack resource issues... As time was running I did it the old-school way, one by one in bas... Then tydying data (rename and compress) and quality control :
+```
+scripts/organize_raw_fasta_input_PAIRA.sh 
+sbatch scripts/fastqc_raw_inputs.sh
+```
+Some fastq have adaptor contents, other does not.\
+Dependening data paired/single-end or adpator or not I used: TruSeq3-PE.fa or TruSeq3-SE.fa paired or single, respectively; and try TruSeq2 and TruSeq3 and pipck the best
 
 
 
